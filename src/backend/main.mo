@@ -1,13 +1,15 @@
+import Array "mo:core/Array";
 import Map "mo:core/Map";
+import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import Time "mo:core/Time";
 import Iter "mo:core/Iter";
-import Nat "mo:core/Nat";
-import Int "mo:core/Int";
-import Array "mo:core/Array";
-import Runtime "mo:core/Runtime";
 import Order "mo:core/Order";
+import Runtime "mo:core/Runtime";
+import Int "mo:core/Int";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type ProductSpecs = {
     ram : Text;
@@ -25,6 +27,9 @@ actor {
     micWorking : Bool;
     fingerPrintWorking : Bool;
     batteryHealth : Nat;
+    warrantyDuration : Text;
+    warrantyType : Text;
+    warrantyTerms : Text;
   };
 
   type Product = {
@@ -35,7 +40,11 @@ actor {
     condition : Text;
     price : Nat;
     imageUrl : Text;
+    imageUrls : [Text];
     isActive : Bool;
+    chargerIncluded : Bool;
+    billIncluded : Bool;
+    boxIncluded : Bool;
     specs : ProductSpecs;
     createdAt : Int;
   };
@@ -55,14 +64,23 @@ actor {
     description : Text;
   };
 
-  // Persistent Stores
+  type Review = {
+    id : Nat;
+    productId : Nat;
+    reviewerName : Text;
+    rating : Nat;
+    comment : Text;
+    createdAt : Int;
+  };
+
   let productStore = Map.empty<Nat, Product>();
   let feedbackStore = Map.empty<Nat, Feedback>();
   let couponStore = Map.empty<Text, Coupon>();
+  let reviewStore = Map.empty<Nat, Review>();
 
-  // Id counters
   var nextProductId = 1;
   var nextFeedbackId = 1;
+  var nextReviewId = 1;
 
   module Product {
     public func compare(product1 : Product, product2 : Product) : Order.Order {
@@ -80,9 +98,11 @@ actor {
     public func compare(feedback1 : Feedback, feedback2 : Feedback) : Order.Order {
       Nat.compare(feedback1.id, feedback2.id);
     };
+  };
 
-    public func compareByEmail(feedback1 : Feedback, feedback2 : Feedback) : Order.Order {
-      Text.compare(feedback1.email, feedback2.email);
+  module Review {
+    public func compare(review1 : Review, review2 : Review) : Order.Order {
+      Int.compare(review2.createdAt, review1.createdAt);
     };
   };
 
@@ -185,17 +205,35 @@ actor {
     feedbackStore.values().toArray().sort();
   };
 
-  system func preupgrade() {
-    let persistentProducts = productStore.toArray();
-    let persistentFeedback = feedbackStore.toArray();
-    let persistentCoupons = couponStore.toArray();
+  public shared ({ caller }) func addReview(productId : Nat, reviewerName : Text, rating : Nat, comment : Text) : async Nat {
+    if (rating < 1 or rating > 5) {
+      Runtime.trap("Rating must be between 1 and 5");
+    };
+
+    let newReview : Review = {
+      id = nextReviewId;
+      productId;
+      reviewerName;
+      rating;
+      comment;
+      createdAt = Time.now();
+    };
+
+    reviewStore.add(nextReviewId, newReview);
+    nextReviewId += 1;
+    newReview.id;
   };
 
-  system func postupgrade() {
-    productStore.clear();
-    feedbackStore.clear();
-    couponStore.clear();
-    nextProductId := 1;
-    nextFeedbackId := 1;
+  public query ({ caller }) func getReviewsByProduct(productId : Nat) : async [Review] {
+    reviewStore.values().toArray().filter<Review>(
+      func(review) { review.productId == productId }
+    ).sort();
+  };
+
+  public shared ({ caller }) func deleteReview(id : Nat) : async () {
+    if (not reviewStore.containsKey(id)) {
+      Runtime.trap("Review not found");
+    };
+    reviewStore.remove(id);
   };
 };

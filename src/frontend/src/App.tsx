@@ -14,21 +14,33 @@ export type Page =
   | "mobiles"
   | "tablets"
   | "laptops"
+  | "smartwatches"
   | "cart"
   | "compare"
   | "admin"
   | "product";
 
+export type Currency = "INR" | "USD";
+
+export function formatPrice(paise: number, currency: Currency = "INR"): string {
+  if (currency === "USD") return `$${(paise / 100 / 83).toFixed(2)}`;
+  return `\u20B9${(paise / 100).toLocaleString("en-IN")}`;
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("home");
   const [productId, setProductId] = useState<string | undefined>(undefined);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [currency, setCurrency] = useState<Currency>("INR");
 
   const navigate = (p: Page, id?: string) => {
     setPage(p);
     if (id) setProductId(id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const toggleCurrency = () =>
+    setCurrency((c) => (c === "INR" ? "USD" : "INR"));
 
   const toggleCompare = (id: string) => {
     setCompareIds((prev) =>
@@ -48,6 +60,7 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
           />
         );
       case "mobiles":
@@ -57,6 +70,7 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
           />
         );
       case "tablets":
@@ -66,6 +80,7 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
           />
         );
       case "laptops":
@@ -75,6 +90,17 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
+          />
+        );
+      case "smartwatches":
+        return (
+          <CategoryPage
+            category="SmartWatch"
+            onNavigate={navigate}
+            compareIds={compareIds}
+            onToggleCompare={toggleCompare}
+            currency={currency}
           />
         );
       case "product":
@@ -84,12 +110,13 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
           />
         ) : null;
       case "cart":
-        return <CartPage onNavigate={navigate} />;
+        return <CartPage onNavigate={navigate} currency={currency} />;
       case "compare":
-        return <ComparePage initialIds={compareIds} />;
+        return <ComparePage initialIds={compareIds} currency={currency} />;
       case "admin":
         return <AdminPage />;
       default:
@@ -98,6 +125,7 @@ export default function App() {
             onNavigate={navigate}
             compareIds={compareIds}
             onToggleCompare={toggleCompare}
+            currency={currency}
           />
         );
     }
@@ -108,7 +136,12 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Toaster richColors position="top-right" />
-      <Header currentPage={page} onNavigate={navigate} />
+      <Header
+        currentPage={page}
+        onNavigate={navigate}
+        currency={currency}
+        onToggleCurrency={toggleCurrency}
+      />
       <main className="flex-1">{renderPage()}</main>
       {!noFooterPages.includes(page) && (
         <Footer onNavigate={(p) => navigate(p as Page)} />

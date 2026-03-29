@@ -24,8 +24,11 @@ export const ProductSpecs = IDL.Record({
   'backPanelReplaced' : IDL.Bool,
   'chargingSpeed' : IDL.Text,
   'batteryHealth' : IDL.Nat,
+  'warrantyTerms' : IDL.Text,
   'wifiWorking' : IDL.Bool,
+  'warrantyType' : IDL.Text,
   'touchWorking' : IDL.Bool,
+  'warrantyDuration' : IDL.Text,
   'bluetoothWorking' : IDL.Bool,
   'micWorking' : IDL.Bool,
   'batteryCapacity' : IDL.Text,
@@ -33,14 +36,18 @@ export const ProductSpecs = IDL.Record({
 });
 export const Product = IDL.Record({
   'id' : IDL.Nat,
+  'imageUrls' : IDL.Vec(IDL.Text),
   'name' : IDL.Text,
   'createdAt' : IDL.Int,
+  'chargerIncluded' : IDL.Bool,
   'description' : IDL.Text,
+  'billIncluded' : IDL.Bool,
   'isActive' : IDL.Bool,
   'specs' : ProductSpecs,
   'imageUrl' : IDL.Text,
   'category' : IDL.Text,
   'price' : IDL.Nat,
+  'boxIncluded' : IDL.Bool,
   'condition' : IDL.Text,
 });
 export const Feedback = IDL.Record({
@@ -50,17 +57,28 @@ export const Feedback = IDL.Record({
   'email' : IDL.Text,
   'message' : IDL.Text,
 });
+export const Review = IDL.Record({
+  'id' : IDL.Nat,
+  'createdAt' : IDL.Int,
+  'productId' : IDL.Nat,
+  'reviewerName' : IDL.Text,
+  'comment' : IDL.Text,
+  'rating' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   'addCoupon' : IDL.Func([Coupon], [], []),
   'addProduct' : IDL.Func([Product], [IDL.Nat], []),
+  'addReview' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Text], [IDL.Nat], []),
   'deleteCoupon' : IDL.Func([IDL.Text], [], []),
   'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+  'deleteReview' : IDL.Func([IDL.Nat], [], []),
   'getAllCoupons' : IDL.Func([], [IDL.Vec(Coupon)], ['query']),
   'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
   'getAllProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
   'getProduct' : IDL.Func([IDL.Nat], [Product], ['query']),
   'getProductsByCategory' : IDL.Func([IDL.Text], [IDL.Vec(Product)], ['query']),
+  'getReviewsByProduct' : IDL.Func([IDL.Nat], [IDL.Vec(Review)], ['query']),
   'submitFeedback' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'updateCoupon' : IDL.Func([IDL.Text, Coupon], [], []),
   'updateProduct' : IDL.Func([IDL.Nat, Product], [], []),
@@ -86,8 +104,11 @@ export const idlFactory = ({ IDL }) => {
     'backPanelReplaced' : IDL.Bool,
     'chargingSpeed' : IDL.Text,
     'batteryHealth' : IDL.Nat,
+    'warrantyTerms' : IDL.Text,
     'wifiWorking' : IDL.Bool,
+    'warrantyType' : IDL.Text,
     'touchWorking' : IDL.Bool,
+    'warrantyDuration' : IDL.Text,
     'bluetoothWorking' : IDL.Bool,
     'micWorking' : IDL.Bool,
     'batteryCapacity' : IDL.Text,
@@ -95,14 +116,18 @@ export const idlFactory = ({ IDL }) => {
   });
   const Product = IDL.Record({
     'id' : IDL.Nat,
+    'imageUrls' : IDL.Vec(IDL.Text),
     'name' : IDL.Text,
     'createdAt' : IDL.Int,
+    'chargerIncluded' : IDL.Bool,
     'description' : IDL.Text,
+    'billIncluded' : IDL.Bool,
     'isActive' : IDL.Bool,
     'specs' : ProductSpecs,
     'imageUrl' : IDL.Text,
     'category' : IDL.Text,
     'price' : IDL.Nat,
+    'boxIncluded' : IDL.Bool,
     'condition' : IDL.Text,
   });
   const Feedback = IDL.Record({
@@ -112,12 +137,26 @@ export const idlFactory = ({ IDL }) => {
     'email' : IDL.Text,
     'message' : IDL.Text,
   });
+  const Review = IDL.Record({
+    'id' : IDL.Nat,
+    'createdAt' : IDL.Int,
+    'productId' : IDL.Nat,
+    'reviewerName' : IDL.Text,
+    'comment' : IDL.Text,
+    'rating' : IDL.Nat,
+  });
   
   return IDL.Service({
     'addCoupon' : IDL.Func([Coupon], [], []),
     'addProduct' : IDL.Func([Product], [IDL.Nat], []),
+    'addReview' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'deleteCoupon' : IDL.Func([IDL.Text], [], []),
     'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+    'deleteReview' : IDL.Func([IDL.Nat], [], []),
     'getAllCoupons' : IDL.Func([], [IDL.Vec(Coupon)], ['query']),
     'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
     'getAllProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
@@ -127,6 +166,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Product)],
         ['query'],
       ),
+    'getReviewsByProduct' : IDL.Func([IDL.Nat], [IDL.Vec(Review)], ['query']),
     'submitFeedback' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
     'updateCoupon' : IDL.Func([IDL.Text, Coupon], [], []),
     'updateProduct' : IDL.Func([IDL.Nat, Product], [], []),

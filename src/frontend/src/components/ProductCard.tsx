@@ -1,5 +1,7 @@
 import type React from "react";
 import { toast } from "sonner";
+import type { Currency } from "../App";
+import { formatPrice } from "../App";
 import { useCart } from "../store/cart";
 import { ConditionBadge } from "./ConditionBadge";
 
@@ -17,10 +19,8 @@ export interface ProductCardProps {
   onNavigate?: (id: string) => void;
   compareIds?: string[];
   onToggleCompare?: (id: string) => void;
+  currency?: Currency;
 }
-
-const formatPrice = (paise: number) =>
-  `\u20B9${(paise / 100).toLocaleString("en-IN")}`;
 
 export function ProductCard({
   id,
@@ -36,6 +36,7 @@ export function ProductCard({
   onNavigate,
   compareIds,
   onToggleCompare,
+  currency = "INR",
 }: ProductCardProps) {
   const addItem = useCart((s) => s.addItem);
   const inCompare = compareIds?.includes(id);
@@ -47,15 +48,19 @@ export function ProductCard({
   };
 
   return (
-    <article className="bg-[#EFE7D8] rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group">
-      <div className="relative overflow-hidden bg-white">
+    <article className="bg-[#EFE7D8] rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group cursor-pointer">
+      <div
+        className="relative overflow-hidden bg-white"
+        onClick={() => onNavigate?.(id)}
+        onKeyDown={() => {}}
+      >
         <img
           src={
             imageUrl ||
             "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400"
           }
           alt={name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
           onError={(e) => {
             (e.target as HTMLImageElement).src =
               "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
@@ -98,7 +103,7 @@ export function ProductCard({
             </div>
             <div className="h-1.5 bg-[#D9D0C2] rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full ${batteryHealth >= 85 ? "bg-green-500" : batteryHealth >= 70 ? "bg-yellow-500" : "bg-red-500"}`}
+                className={`h-full rounded-full transition-all duration-700 ${batteryHealth >= 85 ? "bg-green-500" : batteryHealth >= 70 ? "bg-yellow-500" : "bg-red-500"}`}
                 style={{ width: `${batteryHealth}%` }}
               />
             </div>
@@ -106,13 +111,13 @@ export function ProductCard({
         )}
         <div className="mt-auto pt-2">
           <p className="text-xl font-bold text-[#1E1B4B] mb-3">
-            {formatPrice(price)}
+            {formatPrice(price, currency)}
           </p>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleAdd}
-              className="flex-1 bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white text-sm font-semibold py-2 rounded-xl hover:from-[#3B0764] hover:to-[#6D28D9] transition-all"
+              className="flex-1 bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white text-sm font-semibold py-2 rounded-xl hover:from-[#3B0764] hover:to-[#6D28D9] hover:scale-105 active:scale-95 transition-all duration-200 shadow-md hover:shadow-purple-300"
             >
               Add to Cart
             </button>
@@ -123,7 +128,7 @@ export function ProductCard({
                   e.stopPropagation();
                   onToggleCompare(id);
                 }}
-                className={`px-3 py-2 rounded-xl text-sm border transition-all ${inCompare ? "bg-[#1E1B4B] text-white border-[#1E1B4B]" : "bg-white text-[#1E1B4B] border-[#1E1B4B] hover:bg-[#EEE6D7]"}`}
+                className={`px-3 py-2 rounded-xl text-sm border transition-all duration-200 hover:scale-105 ${inCompare ? "bg-[#1E1B4B] text-white border-[#1E1B4B]" : "bg-white text-[#1E1B4B] border-[#1E1B4B] hover:bg-[#EEE6D7]"}`}
               >
                 {inCompare ? "\u2713" : "\u21c4"}
               </button>

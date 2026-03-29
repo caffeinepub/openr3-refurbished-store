@@ -1,23 +1,15 @@
 import { Minus, Plus, ShoppingBag, Tag, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
+import type { Currency, Page } from "../App";
+import { formatPrice } from "../App";
 import { useActor } from "../hooks/useActor";
 import { useCart } from "../store/cart";
 
-type Page =
-  | "home"
-  | "mobiles"
-  | "tablets"
-  | "laptops"
-  | "cart"
-  | "compare"
-  | "admin"
-  | "product";
-
-const formatPrice = (paise: number) =>
-  `\u20B9${(paise / 100).toLocaleString("en-IN")}`;
-
-export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
+export function CartPage({
+  onNavigate,
+  currency = "INR",
+}: { onNavigate: (page: Page) => void; currency?: Currency }) {
   const { items, removeItem, updateQty, clearCart, total } = useCart();
   const { actor } = useActor();
   const [coupon, setCoupon] = useState("");
@@ -60,7 +52,7 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
         <button
           type="button"
           onClick={() => onNavigate("home")}
-          className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-6 py-3 rounded-2xl"
+          className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-6 py-3 rounded-2xl hover:scale-105 active:scale-95 transition-all duration-200"
         >
           Shop Now
         </button>
@@ -75,12 +67,11 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
           Your Cart ({items.length} item{items.length !== 1 ? "s" : ""})
         </h1>
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {items.map((item) => (
               <div
                 key={item.productId}
-                className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm"
+                className="bg-white rounded-2xl p-4 flex gap-4 shadow-sm hover:shadow-md transition-shadow"
               >
                 <img
                   src={item.imageUrl}
@@ -99,14 +90,14 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
                     {item.category} &bull; {item.condition}
                   </p>
                   <p className="font-bold text-[#1E1B4B] mt-1">
-                    {formatPrice(item.price)}
+                    {formatPrice(item.price, currency)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end justify-between">
                   <button
                     type="button"
                     onClick={() => removeItem(item.productId)}
-                    className="text-red-400 hover:text-red-600 transition-colors"
+                    className="text-red-400 hover:text-red-600 transition-colors hover:scale-110"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -138,31 +129,29 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
             ))}
           </div>
 
-          {/* Summary */}
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-5 shadow-sm">
               <h3 className="font-bold text-[#1E1B4B] mb-4">Order Summary</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-[#6B5F52]">
                   <span>Subtotal</span>
-                  <span>{formatPrice(subtotal)}</span>
+                  <span>{formatPrice(subtotal, currency)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>
                       Discount ({couponApplied}, {discount}%)
                     </span>
-                    <span>-{formatPrice(discountAmt)}</span>
+                    <span>-{formatPrice(discountAmt, currency)}</span>
                   </div>
                 )}
                 <div className="border-t border-[#D9D0C2] pt-2 flex justify-between font-bold text-[#1E1B4B] text-base">
                   <span>Total</span>
-                  <span>{formatPrice(finalTotal)}</span>
+                  <span>{formatPrice(finalTotal, currency)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Coupon */}
             <div className="bg-white rounded-2xl p-5 shadow-sm">
               <h3 className="font-semibold text-[#1E1B4B] mb-3 flex items-center gap-2">
                 <Tag className="w-4 h-4" /> Coupon Code
@@ -178,7 +167,7 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
                   type="button"
                   onClick={applyCoupon}
                   disabled={applying}
-                  className="bg-[#1E1B4B] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2D2A6B] disabled:opacity-60"
+                  className="bg-[#1E1B4B] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#2D2A6B] disabled:opacity-60 hover:scale-105 transition-all"
                 >
                   {applying ? "..." : "Apply"}
                 </button>
@@ -193,7 +182,7 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
             <button
               type="button"
               onClick={() => setCheckoutModal(true)}
-              className="w-full bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-4 rounded-2xl text-lg hover:from-[#3B0764] hover:to-[#6D28D9] transition-all shadow-lg"
+              className="w-full bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-4 rounded-2xl text-lg hover:from-[#3B0764] hover:to-[#6D28D9] hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-purple-300"
             >
               Proceed to Checkout
             </button>
@@ -201,7 +190,6 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
         </div>
       </div>
 
-      {/* Checkout Modal */}
       {checkoutModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
@@ -215,19 +203,19 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
                     {i.name} x{i.quantity}
                   </span>
                   <span className="font-medium">
-                    {formatPrice(i.price * i.quantity)}
+                    {formatPrice(i.price * i.quantity, currency)}
                   </span>
                 </div>
               ))}
               {discount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount</span>
-                  <span>-{formatPrice(discountAmt)}</span>
+                  <span>-{formatPrice(discountAmt, currency)}</span>
                 </div>
               )}
               <div className="border-t pt-2 flex justify-between font-bold text-[#1E1B4B]">
                 <span>Total Payable</span>
-                <span>{formatPrice(finalTotal)}</span>
+                <span>{formatPrice(finalTotal, currency)}</span>
               </div>
             </div>
             <div className="flex gap-3">
@@ -249,7 +237,7 @@ export function CartPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
                 }}
                 className="flex-1 bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-3 rounded-xl text-center hover:from-[#3B0764] hover:to-[#6D28D9]"
               >
-                Pay {formatPrice(finalTotal)}
+                Pay {formatPrice(finalTotal, currency)}
               </a>
             </div>
           </div>

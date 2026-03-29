@@ -89,6 +89,13 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface Feedback {
+    id: bigint;
+    name: string;
+    createdAt: bigint;
+    email: string;
+    message: string;
+}
 export interface Coupon {
     code: string;
     description: string;
@@ -105,42 +112,53 @@ export interface ProductSpecs {
     backPanelReplaced: boolean;
     chargingSpeed: string;
     batteryHealth: bigint;
+    warrantyTerms: string;
     wifiWorking: boolean;
+    warrantyType: string;
     touchWorking: boolean;
+    warrantyDuration: string;
     bluetoothWorking: boolean;
     micWorking: boolean;
     batteryCapacity: string;
     screenReplaced: boolean;
 }
+export interface Review {
+    id: bigint;
+    createdAt: bigint;
+    productId: bigint;
+    reviewerName: string;
+    comment: string;
+    rating: bigint;
+}
 export interface Product {
     id: bigint;
+    imageUrls: Array<string>;
     name: string;
     createdAt: bigint;
+    chargerIncluded: boolean;
     description: string;
+    billIncluded: boolean;
     isActive: boolean;
     specs: ProductSpecs;
     imageUrl: string;
     category: string;
     price: bigint;
+    boxIncluded: boolean;
     condition: string;
-}
-export interface Feedback {
-    id: bigint;
-    name: string;
-    createdAt: bigint;
-    email: string;
-    message: string;
 }
 export interface backendInterface {
     addCoupon(coupon: Coupon): Promise<void>;
     addProduct(product: Product): Promise<bigint>;
+    addReview(productId: bigint, reviewerName: string, rating: bigint, comment: string): Promise<bigint>;
     deleteCoupon(code: string): Promise<void>;
     deleteProduct(id: bigint): Promise<void>;
+    deleteReview(id: bigint): Promise<void>;
     getAllCoupons(): Promise<Array<Coupon>>;
     getAllFeedback(): Promise<Array<Feedback>>;
     getAllProducts(): Promise<Array<Product>>;
     getProduct(id: bigint): Promise<Product>;
     getProductsByCategory(category: string): Promise<Array<Product>>;
+    getReviewsByProduct(productId: bigint): Promise<Array<Review>>;
     submitFeedback(name: string, email: string, message: string): Promise<bigint>;
     updateCoupon(code: string, coupon: Coupon): Promise<void>;
     updateProduct(id: bigint, product: Product): Promise<void>;
@@ -176,6 +194,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addReview(arg0: bigint, arg1: string, arg2: bigint, arg3: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addReview(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addReview(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
     async deleteCoupon(arg0: string): Promise<void> {
         if (this.processError) {
             try {
@@ -201,6 +233,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteProduct(arg0);
+            return result;
+        }
+    }
+    async deleteReview(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteReview(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteReview(arg0);
             return result;
         }
     }
@@ -271,6 +317,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getProductsByCategory(arg0);
+            return result;
+        }
+    }
+    async getReviewsByProduct(arg0: bigint): Promise<Array<Review>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getReviewsByProduct(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getReviewsByProduct(arg0);
             return result;
         }
     }

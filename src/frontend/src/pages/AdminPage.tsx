@@ -1,12 +1,16 @@
-import { Edit2, LogIn, LogOut, Plus, Trash2 } from "lucide-react";
+import { Edit2, LogIn, LogOut, Plus, Star, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Coupon, Feedback, Product, ProductSpecs } from "../backend.d";
+import { formatPrice } from "../App";
+import type {
+  Coupon,
+  Feedback,
+  Product,
+  ProductSpecs,
+  Review,
+} from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-
-const formatPrice = (paise: number) =>
-  `\u20B9${(paise / 100).toLocaleString("en-IN")}`;
 
 const EMPTY_SPECS: ProductSpecs = {
   ram: "",
@@ -24,6 +28,9 @@ const EMPTY_SPECS: ProductSpecs = {
   speakerWorking: true,
   micWorking: true,
   fingerPrintWorking: true,
+  warrantyDuration: "",
+  warrantyType: "Seller Warranty",
+  warrantyTerms: "",
 };
 
 const EMPTY_PRODUCT: Omit<Product, "id" | "createdAt"> = {
@@ -33,26 +40,46 @@ const EMPTY_PRODUCT: Omit<Product, "id" | "createdAt"> = {
   condition: "Excellent",
   price: BigInt(0),
   imageUrl: "",
-  specs: EMPTY_SPECS,
+  imageUrls: [],
   isActive: true,
+  chargerIncluded: false,
+  billIncluded: false,
+  boxIncluded: false,
+  specs: EMPTY_SPECS,
 };
+
+const StarRow = ({ rating }: { rating: number }) => (
+  <div className="flex gap-0.5">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < rating ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+      />
+    ))}
+  </div>
+);
 
 export function AdminPage() {
   const { identity, login, clear, isLoggingIn } = useInternetIdentity();
   const { actor } = useActor();
   const isLoggedIn = !!identity;
 
-  const [tab, setTab] = useState<"products" | "coupons" | "feedback">(
-    "products",
-  );
+  const [tab, setTab] = useState<
+    "products" | "coupons" | "feedback" | "reviews"
+  >("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [allProductsMap, setAllProductsMap] = useState<Map<string, string>>(
+    new Map(),
+  );
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [pForm, setPForm] =
     useState<Omit<Product, "id" | "createdAt">>(EMPTY_PRODUCT);
+  const [imageUrlsText, setImageUrlsText] = useState("");
   const [cForm, setCForm] = useState<Coupon>({
     code: "",
     discountPercent: BigInt(0),
@@ -72,6 +99,13 @@ export function AdminPage() {
       setProducts(p);
       setCoupons(c);
       setFeedback(f);
+      const map = new Map(p.map((prod) => [prod.id.toString(), prod.name]));
+      setAllProductsMap(map);
+      // Load all reviews by fetching for each product
+      const revArrays = await Promise.all(
+        p.map((prod) => actor.getReviewsByProduct(prod.id)),
+      );
+      setReviews(revArrays.flat());
     } catch {
       /* ignore */
     }
@@ -96,7 +130,7 @@ export function AdminPage() {
             type="button"
             onClick={login}
             disabled={isLoggingIn}
-            className="w-full bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-3 rounded-xl hover:from-[#3B0764] hover:to-[#6D28D9] disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-3 rounded-xl hover:from-[#3B0764] hover:to-[#6D28D9] disabled:opacity-60 flex items-center justify-center gap-2 hover:scale-105 transition-all"
           >
             <LogIn className="w-5 h-5" />
             {isLoggingIn ? "Connecting..." : "Login with Internet Identity"}
@@ -110,11 +144,17 @@ export function AdminPage() {
     if (!actor) return;
     setLoading(true);
     try {
+      const imageUrls = imageUrlsText
+        .split("\n")
+        .map((u) => u.trim())
+        .filter(Boolean);
       const productData: Product = {
         ...pForm,
         id: editProduct ? editProduct.id : BigInt(0),
         createdAt: editProduct ? editProduct.createdAt : BigInt(Date.now()),
         price: BigInt(Math.round(Number(pForm.price))),
+        imageUrls,
+        imageUrl: imageUrls[0] || pForm.imageUrl,
         specs: {
           ...pForm.specs,
           batteryHealth: BigInt(Number(pForm.specs.batteryHealth)),
@@ -130,6 +170,7 @@ export function AdminPage() {
       setShowProductForm(false);
       setEditProduct(null);
       setPForm(EMPTY_PRODUCT);
+      setImageUrlsText("");
       await loadData();
     } catch {
       toast.error("Failed to save product");
@@ -176,6 +217,44 @@ export function AdminPage() {
     await loadData();
   };
 
+  const deleteReview = async (id: bigint) => {
+    if (!actor || !confirm("Delete this review?")) return;
+    await actor.deleteReview(id);
+    toast.success("Review deleted");
+    await loadData();
+  };
+
+  const openEditProduct = (p: Product) => {
+    setEditProduct(p);
+    setPForm({
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      condition: p.condition,
+      price: p.price,
+      imageUrl: p.imageUrl,
+      imageUrls: p.imageUrls || [],
+      isActive: p.isActive,
+      chargerIncluded: p.chargerIncluded || false,
+      billIncluded: p.billIncluded || false,
+      boxIncluded: p.boxIncluded || false,
+      specs: p.specs,
+    });
+    setImageUrlsText((p.imageUrls || []).join("\n"));
+    setShowProductForm(true);
+  };
+
+  const CATEGORIES = ["Mobile", "Tablet", "Laptop", "SmartWatch"];
+  const CONDITIONS = [
+    "Excellent",
+    "Mint",
+    "Open Box",
+    "Good",
+    "Average",
+    "Fair",
+  ];
+  const WARRANTY_TYPES = ["Seller Warranty", "Brand Warranty", "No Warranty"];
+
   return (
     <div className="min-h-screen bg-[#F5F0E6] py-8 px-4">
       <div className="max-w-7xl mx-auto">
@@ -183,39 +262,43 @@ export function AdminPage() {
           <div>
             <h1 className="text-3xl font-bold text-[#1E1B4B]">Admin Panel</h1>
             <p className="text-[#6B5F52] text-sm">
-              Manage products, coupons & feedback
+              Manage products, coupons, feedback & reviews
             </p>
           </div>
           <button
             type="button"
             onClick={clear}
-            className="flex items-center gap-2 text-sm text-[#6B5F52] border border-[#D9D0C2] rounded-xl px-4 py-2 hover:bg-[#EFE7D8]"
+            className="flex items-center gap-2 text-sm text-[#6B5F52] border border-[#D9D0C2] rounded-xl px-4 py-2 hover:bg-[#EFE7D8] transition-all"
           >
             <LogOut className="w-4 h-4" /> Logout
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          {(["products", "coupons", "feedback"] as const).map((t) => (
-            <button
-              type="button"
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm capitalize transition-all ${
-                tab === t
-                  ? "bg-[#1E1B4B] text-white"
-                  : "bg-white text-[#1E1B4B] border border-[#D9D0C2] hover:bg-[#EFE7D8]"
-              }`}
-            >
-              {t}{" "}
-              {t === "products"
-                ? `(${products.length})`
-                : t === "coupons"
-                  ? `(${coupons.length})`
-                  : `(${feedback.length})`}
-            </button>
-          ))}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {(["products", "coupons", "feedback", "reviews"] as const).map(
+            (t) => (
+              <button
+                type="button"
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm capitalize transition-all duration-200 hover:scale-105 ${
+                  tab === t
+                    ? "bg-[#1E1B4B] text-white"
+                    : "bg-white text-[#1E1B4B] border border-[#D9D0C2] hover:bg-[#EFE7D8]"
+                }`}
+              >
+                {t} (
+                {t === "products"
+                  ? products.length
+                  : t === "coupons"
+                    ? coupons.length
+                    : t === "feedback"
+                      ? feedback.length
+                      : reviews.length}
+                )
+              </button>
+            ),
+          )}
         </div>
 
         {/* Products Tab */}
@@ -227,9 +310,10 @@ export function AdminPage() {
                 onClick={() => {
                   setEditProduct(null);
                   setPForm(EMPTY_PRODUCT);
+                  setImageUrlsText("");
                   setShowProductForm(true);
                 }}
-                className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2"
+                className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:scale-105 transition-all"
               >
                 <Plus className="w-4 h-4" /> Add Product
               </button>
@@ -285,7 +369,7 @@ export function AdminPage() {
                         </span>
                       </td>
                       <td className="p-4 font-semibold text-sm">
-                        {formatPrice(Number(p.price))}
+                        {formatPrice(Number(p.price), "INR")}
                       </td>
                       <td className="p-4">
                         <span
@@ -298,28 +382,15 @@ export function AdminPage() {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditProduct(p);
-                              setPForm({
-                                name: p.name,
-                                description: p.description,
-                                category: p.category,
-                                condition: p.condition,
-                                price: p.price,
-                                imageUrl: p.imageUrl,
-                                specs: p.specs,
-                                isActive: p.isActive,
-                              });
-                              setShowProductForm(true);
-                            }}
-                            className="p-2 rounded-lg bg-[#EFE7D8] hover:bg-[#E0D5C5] text-[#1E1B4B]"
+                            onClick={() => openEditProduct(p)}
+                            className="p-2 rounded-lg bg-[#EFE7D8] hover:bg-[#E0D5C5] text-[#1E1B4B] hover:scale-110 transition-all"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => deleteProduct(p.id)}
-                            className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500"
+                            className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:scale-110 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -340,7 +411,7 @@ export function AdminPage() {
               <button
                 type="button"
                 onClick={() => setShowCouponForm(true)}
-                className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2"
+                className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:scale-105 transition-all"
               >
                 <Plus className="w-4 h-4" /> Add Coupon
               </button>
@@ -388,7 +459,7 @@ export function AdminPage() {
                         <button
                           type="button"
                           onClick={() => deleteCoupon(c.code)}
-                          className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500"
+                          className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:scale-110 transition-all"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -407,7 +478,7 @@ export function AdminPage() {
             {feedback.map((f) => (
               <div
                 key={f.id.toString()}
-                className="bg-white rounded-2xl p-5 shadow-sm"
+                className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between mb-2">
                   <div>
@@ -434,6 +505,79 @@ export function AdminPage() {
             )}
           </div>
         )}
+
+        {/* Reviews Tab */}
+        {tab === "reviews" && (
+          <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
+            <table className="w-full min-w-[700px]">
+              <thead className="bg-[#F5F0E6]">
+                <tr>
+                  {[
+                    "Product",
+                    "Reviewer",
+                    "Rating",
+                    "Comment",
+                    "Date",
+                    "Actions",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left p-4 text-xs text-[#6B5F52] font-semibold uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {reviews.map((r) => (
+                  <tr
+                    key={r.id.toString()}
+                    className="border-t border-[#F0EBE3] hover:bg-[#FAF7F2]"
+                  >
+                    <td className="p-4 text-sm text-[#1E1B4B] max-w-[150px] truncate">
+                      {allProductsMap.get(r.productId.toString()) ||
+                        `#${r.productId}`}
+                    </td>
+                    <td className="p-4 font-medium text-sm text-[#1E1B4B]">
+                      {r.reviewerName}
+                    </td>
+                    <td className="p-4">
+                      <StarRow rating={Number(r.rating)} />
+                    </td>
+                    <td className="p-4 text-sm text-[#6B5F52] max-w-xs">
+                      {r.comment}
+                    </td>
+                    <td className="p-4 text-xs text-[#6B5F52]">
+                      {new Date(
+                        Number(r.createdAt) / 1000000,
+                      ).toLocaleDateString()}
+                    </td>
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => deleteReview(r.id)}
+                        className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 hover:scale-110 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {reviews.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="text-center py-10 text-[#6B5F52]"
+                    >
+                      No reviews yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Product Form Modal */}
@@ -444,39 +588,26 @@ export function AdminPage() {
               {editProduct ? "Edit" : "Add"} Product
             </h2>
             <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: "Name", key: "name", type: "text" },
-                { label: "Image URL", key: "imageUrl", type: "text" },
-              ].map(({ label, key, type }) => (
-                <div key={key} className="col-span-2">
-                  <label
-                    htmlFor="field-1"
-                    className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                  >
-                    {label}
-                  </label>
-                  <input
-                    id="field-1"
-                    type={type}
-                    value={String(
-                      (pForm as Record<string, unknown>)[key] ?? "",
-                    )}
-                    onChange={(e) =>
-                      setPForm((f) => ({ ...f, [key]: e.target.value }))
-                    }
-                    className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
-                  />
-                </div>
-              ))}
+              {/* Name */}
               <div className="col-span-2">
-                <label
-                  htmlFor="field-2"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={pForm.name}
+                  onChange={(e) =>
+                    setPForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                />
+              </div>
+              {/* Description */}
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Description
                 </label>
                 <textarea
-                  id="field-2"
                   value={pForm.description}
                   onChange={(e) =>
                     setPForm((f) => ({ ...f, description: e.target.value }))
@@ -485,62 +616,58 @@ export function AdminPage() {
                   className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
                 />
               </div>
+              {/* Image URLs */}
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Image URLs (one per line, first = primary)
+                </label>
+                <textarea
+                  value={imageUrlsText}
+                  onChange={(e) => setImageUrlsText(e.target.value)}
+                  rows={3}
+                  placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                  className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                />
+              </div>
+              {/* Category & Condition */}
               <div>
-                <label
-                  htmlFor="field-3"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Category
                 </label>
                 <select
-                  id="field-3"
                   value={pForm.category}
                   onChange={(e) =>
                     setPForm((f) => ({ ...f, category: e.target.value }))
                   }
                   className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
                 >
-                  {["Mobile", "Tablet", "Laptop"].map((c) => (
+                  {CATEGORIES.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label
-                  htmlFor="field-4"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Condition
                 </label>
                 <select
-                  id="field-4"
                   value={pForm.condition}
                   onChange={(e) =>
                     setPForm((f) => ({ ...f, condition: e.target.value }))
                   }
                   className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
                 >
-                  {[
-                    "Excellent",
-                    "Mint",
-                    "Open Box",
-                    "Good",
-                    "Average",
-                    "Fair",
-                  ].map((c) => (
+                  {CONDITIONS.map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
               </div>
+              {/* Price */}
               <div>
-                <label
-                  htmlFor="field-5"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
-                  Price (&#x20B9;)
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Price (₹)
                 </label>
                 <input
-                  id="field-5"
                   type="number"
                   value={Number(pForm.price) / 100}
                   onChange={(e) =>
@@ -556,15 +683,12 @@ export function AdminPage() {
                   className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
                 />
               </div>
+              {/* Battery Health */}
               <div>
-                <label
-                  htmlFor="field-6"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Battery Health (%)
                 </label>
                 <input
-                  id="field-6"
                   type="number"
                   min={0}
                   max={100}
@@ -581,18 +705,15 @@ export function AdminPage() {
                   className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
                 />
               </div>
+              {/* Specs fields */}
               {(
                 ["ram", "storage", "batteryCapacity", "chargingSpeed"] as const
               ).map((key) => (
                 <div key={key}>
-                  <label
-                    htmlFor="field-7"
-                    className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                  >
+                  <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                     {key}
                   </label>
                   <input
-                    id="field-7"
                     type="text"
                     value={pForm.specs[key]}
                     onChange={(e) =>
@@ -605,9 +726,94 @@ export function AdminPage() {
                   />
                 </div>
               ))}
+              {/* Warranty */}
+              <div>
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Warranty Type
+                </label>
+                <select
+                  value={pForm.specs.warrantyType}
+                  onChange={(e) =>
+                    setPForm((f) => ({
+                      ...f,
+                      specs: { ...f.specs, warrantyType: e.target.value },
+                    }))
+                  }
+                  className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                >
+                  {WARRANTY_TYPES.map((w) => (
+                    <option key={w}>{w}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Warranty Duration
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 6 months, 1 year"
+                  value={pForm.specs.warrantyDuration}
+                  onChange={(e) =>
+                    setPForm((f) => ({
+                      ...f,
+                      specs: { ...f.specs, warrantyDuration: e.target.value },
+                    }))
+                  }
+                  className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
+                  Warranty Terms
+                </label>
+                <textarea
+                  value={pForm.specs.warrantyTerms}
+                  placeholder="Describe what's covered..."
+                  onChange={(e) =>
+                    setPForm((f) => ({
+                      ...f,
+                      specs: { ...f.specs, warrantyTerms: e.target.value },
+                    }))
+                  }
+                  rows={2}
+                  className="w-full border border-[#D9D0C2] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                />
+              </div>
+              {/* In the Box */}
               <div className="col-span-2">
                 <p className="text-xs font-semibold text-[#6B5F52] uppercase mb-2">
-                  Replaced Parts &amp; Hardware
+                  What's in the Box
+                </p>
+                <div className="flex gap-6">
+                  {(
+                    ["chargerIncluded", "billIncluded", "boxIncluded"] as const
+                  ).map((key) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(pForm[key])}
+                        onChange={(e) =>
+                          setPForm((f) => ({ ...f, [key]: e.target.checked }))
+                        }
+                        className="rounded w-4 h-4"
+                      />
+                      {key === "chargerIncluded"
+                        ? "Charger"
+                        : key === "billIncluded"
+                          ? "Bill/Invoice"
+                          : "Original Box"}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {/* Hardware & Replaced Parts */}
+              <div className="col-span-2">
+                <p className="text-xs font-semibold text-[#6B5F52] uppercase mb-2">
+                  Replaced Parts & Hardware Status
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {(
@@ -644,6 +850,20 @@ export function AdminPage() {
                   ))}
                 </div>
               </div>
+              {/* Active */}
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pForm.isActive}
+                    onChange={(e) =>
+                      setPForm((f) => ({ ...f, isActive: e.target.checked }))
+                    }
+                    className="rounded"
+                  />
+                  Active (visible to customers)
+                </label>
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
@@ -652,7 +872,7 @@ export function AdminPage() {
                   setShowProductForm(false);
                   setEditProduct(null);
                 }}
-                className="flex-1 border border-[#D9D0C2] py-3 rounded-xl text-sm"
+                className="flex-1 border border-[#D9D0C2] py-3 rounded-xl text-sm hover:bg-[#F5F0E6] transition-all"
               >
                 Cancel
               </button>
@@ -660,7 +880,7 @@ export function AdminPage() {
                 type="button"
                 onClick={saveProduct}
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-3 rounded-xl disabled:opacity-60"
+                className="flex-1 bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white font-bold py-3 rounded-xl disabled:opacity-60 hover:scale-105 transition-all"
               >
                 {loading ? "Saving..." : editProduct ? "Update" : "Add"} Product
               </button>
@@ -678,14 +898,10 @@ export function AdminPage() {
             </h2>
             <div className="space-y-4">
               <div>
-                <label
-                  htmlFor="field-8"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Code
                 </label>
                 <input
-                  id="field-8"
                   value={cForm.code}
                   onChange={(e) =>
                     setCForm((f) => ({
@@ -697,14 +913,10 @@ export function AdminPage() {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="field-9"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Description
                 </label>
                 <input
-                  id="field-9"
                   value={cForm.description}
                   onChange={(e) =>
                     setCForm((f) => ({ ...f, description: e.target.value }))
@@ -713,14 +925,10 @@ export function AdminPage() {
                 />
               </div>
               <div>
-                <label
-                  htmlFor="field-10"
-                  className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block"
-                >
+                <label className="text-xs font-semibold text-[#6B5F52] uppercase mb-1 block">
                   Discount %
                 </label>
                 <input
-                  id="field-10"
                   type="number"
                   min={1}
                   max={100}

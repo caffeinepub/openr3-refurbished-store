@@ -1,18 +1,10 @@
 import { SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import type { Currency, Page } from "../App";
+import { formatPrice } from "../App";
 import type { Product } from "../backend.d";
 import { ProductCard } from "../components/ProductCard";
 import { useActor } from "../hooks/useActor";
-
-type Page =
-  | "home"
-  | "mobiles"
-  | "tablets"
-  | "laptops"
-  | "cart"
-  | "compare"
-  | "admin"
-  | "product";
 
 const CONDITIONS = [
   "All",
@@ -34,22 +26,28 @@ const categoryMeta: Record<
   { emoji: string; from: string; to: string; desc: string }
 > = {
   Mobile: {
-    emoji: "📱",
+    emoji: "\uD83D\uDCF1",
     from: "from-[#4C1D95]",
     to: "to-[#7C3AED]",
     desc: "Certified refurbished smartphones",
   },
   Laptop: {
-    emoji: "💻",
+    emoji: "\uD83D\uDCBB",
     from: "from-[#1E3A5F]",
     to: "to-[#2563EB]",
     desc: "Refurbished laptops with warranty",
   },
   Tablet: {
-    emoji: "📲",
+    emoji: "\uD83D\uDCF2",
     from: "from-[#065F46]",
     to: "to-[#059669]",
     desc: "Quality refurbished tablets",
+  },
+  SmartWatch: {
+    emoji: "\u231A",
+    from: "from-[#B45309]",
+    to: "to-[#D97706]",
+    desc: "Refurbished smart watches",
   },
 };
 
@@ -58,6 +56,7 @@ interface CategoryPageProps {
   onNavigate: (page: Page, id?: string) => void;
   compareIds: string[];
   onToggleCompare: (id: string) => void;
+  currency: Currency;
 }
 
 export function CategoryPage({
@@ -65,6 +64,7 @@ export function CategoryPage({
   onNavigate,
   compareIds,
   onToggleCompare,
+  currency,
 }: CategoryPageProps) {
   const { actor } = useActor();
   const [products, setProducts] = useState<Product[]>([]);
@@ -93,7 +93,7 @@ export function CategoryPage({
     });
 
   const meta = categoryMeta[category] ?? {
-    emoji: "📦",
+    emoji: "\uD83D\uDCE6",
     from: "from-[#1E1B4B]",
     to: "to-[#4C1D95]",
     desc: "",
@@ -101,20 +101,20 @@ export function CategoryPage({
 
   return (
     <div className="min-h-screen bg-[#F5F0E6]">
-      {/* Hero */}
       <div className={`bg-gradient-to-r ${meta.from} ${meta.to} py-12 px-4`}>
         <div className="max-w-7xl mx-auto text-white">
           <div className="flex items-center gap-4">
             <span className="text-5xl">{meta.emoji}</span>
             <div>
-              <h1 className="text-4xl font-bold">{category}s</h1>
+              <h1 className="text-4xl font-bold">
+                {category === "SmartWatch" ? "Smart Watches" : `${category}s`}
+              </h1>
               <p className="text-white/70 mt-1">{meta.desc}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
       <div className="sticky top-16 z-30 bg-white/95 backdrop-blur shadow-sm border-b border-[#D9D0C2]">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <SlidersHorizontal className="w-4 h-4 text-[#6B5F52]" />
@@ -124,7 +124,7 @@ export function CategoryPage({
                 type="button"
                 key={c}
                 onClick={() => setCondition(c)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 hover:scale-105 ${
                   condition === c
                     ? "bg-[#7C3AED] text-white border-[#7C3AED]"
                     : "bg-white text-[#1E1B4B] border-[#D9D0C2] hover:border-[#7C3AED]"
@@ -150,7 +150,6 @@ export function CategoryPage({
         </div>
       </div>
 
-      {/* Products */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -189,6 +188,7 @@ export function CategoryPage({
                   onNavigate={(id) => onNavigate("product", id)}
                   compareIds={compareIds}
                   onToggleCompare={onToggleCompare}
+                  currency={currency}
                 />
               ))}
             </div>

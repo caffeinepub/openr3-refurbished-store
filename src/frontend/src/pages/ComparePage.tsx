@@ -1,17 +1,17 @@
 import { CheckCircle, X, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import type { Currency } from "../App";
+import { formatPrice } from "../App";
 import type { Product } from "../backend.d";
 import { ConditionBadge } from "../components/ConditionBadge";
 import { useActor } from "../hooks/useActor";
 
-const formatPrice = (paise: number) =>
-  `\u20B9${(paise / 100).toLocaleString("en-IN")}`;
-
 interface Props {
   initialIds?: string[];
+  currency?: Currency;
 }
 
-export function ComparePage({ initialIds = [] }: Props) {
+export function ComparePage({ initialIds = [], currency = "INR" }: Props) {
   const { actor } = useActor();
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [selected, setSelected] = useState<string[]>(initialIds.slice(0, 3));
@@ -34,7 +34,7 @@ export function ComparePage({ initialIds = [] }: Props) {
     )
     .slice(0, 8);
 
-  const toggle = (id: string) => {
+  const toggle = (id: string) =>
     setSelected((prev) =>
       prev.includes(id)
         ? prev.filter((x) => x !== id)
@@ -42,11 +42,10 @@ export function ComparePage({ initialIds = [] }: Props) {
           ? [...prev, id]
           : prev,
     );
-  };
 
   const specRows: {
     label: string;
-    key: keyof Product["specs"] | "price" | "condition" | "category";
+    key: string;
     isPrice?: boolean;
     isBool?: boolean;
   }[] = [
@@ -92,7 +91,6 @@ export function ComparePage({ initialIds = [] }: Props) {
           Select up to 3 devices to compare side-by-side
         </p>
 
-        {/* Product Selector */}
         <div className="bg-white rounded-2xl p-5 mb-8 shadow-sm">
           <input
             value={search}
@@ -107,7 +105,7 @@ export function ComparePage({ initialIds = [] }: Props) {
                 key={p.id.toString()}
                 onClick={() => toggle(p.id.toString())}
                 disabled={selected.length >= 3}
-                className="text-left p-3 border border-[#D9D0C2] rounded-xl hover:border-[#7C3AED] transition-all text-sm disabled:opacity-50"
+                className="text-left p-3 border border-[#D9D0C2] rounded-xl hover:border-[#7C3AED] hover:scale-105 transition-all text-sm disabled:opacity-50"
               >
                 <p className="font-medium text-[#1E1B4B] truncate">{p.name}</p>
                 <p className="text-xs text-[#6B5F52]">
@@ -197,7 +195,7 @@ export function ComparePage({ initialIds = [] }: Props) {
                                   : ""
                               }
                             >
-                              {formatPrice(val as number)}
+                              {formatPrice(val as number, currency)}
                               {isLowest && " ⭐"}
                             </span>
                           ) : key === "condition" ? (

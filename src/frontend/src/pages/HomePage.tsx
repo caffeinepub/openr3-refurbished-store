@@ -7,32 +7,27 @@ import {
   Smartphone,
   Tablet,
   Truck,
+  Watch,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import type { Currency, Page } from "../App";
+import { formatPrice } from "../App";
 import type { Product } from "../backend.d";
 import { ProductCard } from "../components/ProductCard";
 import { useActor } from "../hooks/useActor";
-
-type Page =
-  | "home"
-  | "mobiles"
-  | "tablets"
-  | "laptops"
-  | "cart"
-  | "compare"
-  | "admin"
-  | "product";
 
 interface HomePageProps {
   onNavigate: (page: Page, id?: string) => void;
   compareIds: string[];
   onToggleCompare: (id: string) => void;
+  currency: Currency;
 }
 
 export function HomePage({
   onNavigate,
   compareIds,
   onToggleCompare,
+  currency,
 }: HomePageProps) {
   const { actor } = useActor();
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,6 +47,9 @@ export function HomePage({
   const mobiles = products.filter((p) => p.category === "Mobile").slice(0, 4);
   const tablets = products.filter((p) => p.category === "Tablet").slice(0, 4);
   const laptops = products.filter((p) => p.category === "Laptop").slice(0, 4);
+  const watches = products
+    .filter((p) => p.category === "SmartWatch")
+    .slice(0, 4);
 
   const categoryConfig = [
     {
@@ -81,6 +79,15 @@ export function HomePage({
       items: tablets,
       emoji: "\uD83D\uDCF2",
     },
+    {
+      key: "SmartWatch",
+      label: "Smart Watches",
+      page: "smartwatches" as Page,
+      from: "from-[#B45309]",
+      to: "to-[#D97706]",
+      items: watches,
+      emoji: "\u231A",
+    },
   ];
 
   return (
@@ -89,7 +96,7 @@ export function HomePage({
       <section className="relative overflow-hidden">
         <div className="bg-gradient-to-br from-[#1E1B4B] via-[#4C1D95] to-[#7C3AED] py-20 px-4">
           <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8 items-center">
-            <div className="text-white">
+            <div className="text-white animate-fade-up">
               <p className="text-[#C4B5FD] text-sm font-semibold uppercase tracking-widest mb-3">
                 Certified Refurbished Electronics
               </p>
@@ -108,14 +115,14 @@ export function HomePage({
                 <button
                   type="button"
                   onClick={() => onNavigate("mobiles")}
-                  className="bg-white text-[#4C1D95] font-bold px-8 py-3 rounded-2xl hover:bg-[#F5F0E6] transition-all shadow-lg"
+                  className="bg-white text-[#4C1D95] font-bold px-8 py-3 rounded-2xl hover:bg-[#F5F0E6] hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Shop Now
                 </button>
                 <button
                   type="button"
                   onClick={() => onNavigate("compare")}
-                  className="border-2 border-white text-white font-semibold px-8 py-3 rounded-2xl hover:bg-white/10 transition-all"
+                  className="border-2 border-white text-white font-semibold px-8 py-3 rounded-2xl hover:bg-white/10 hover:scale-105 active:scale-95 transition-all duration-200"
                 >
                   Compare Devices
                 </button>
@@ -139,11 +146,15 @@ export function HomePage({
                     label: "Tablets",
                     sub: "From \u20B914,999",
                   },
-                  { emoji: "\u2705", label: "Certified", sub: "Quality Check" },
+                  {
+                    emoji: "\u231A",
+                    label: "Watches",
+                    sub: "From \u20B92,999",
+                  },
                 ].map((item) => (
                   <div
                     key={item.label}
-                    className="bg-white/10 backdrop-blur rounded-2xl p-5 text-center text-white"
+                    className="bg-white/10 backdrop-blur rounded-2xl p-5 text-center text-white hover:bg-white/20 transition-all duration-200 hover:scale-105"
                   >
                     <div className="text-3xl mb-2">{item.emoji}</div>
                     <p className="font-semibold">{item.label}</p>
@@ -154,7 +165,6 @@ export function HomePage({
             </div>
           </div>
         </div>
-        {/* Wave divider */}
         <div className="h-8">
           <svg
             viewBox="0 0 1440 32"
@@ -173,7 +183,7 @@ export function HomePage({
         <section key={key} className="py-12 px-4">
           <div className="max-w-7xl mx-auto">
             <div
-              className={`bg-gradient-to-r ${from} ${to} rounded-2xl px-8 py-6 mb-8 flex justify-between items-center`}
+              className={`bg-gradient-to-r ${from} ${to} rounded-2xl px-8 py-6 mb-8 flex justify-between items-center shadow-lg`}
             >
               <div className="text-white">
                 <div className="flex items-center gap-3 mb-1">
@@ -188,7 +198,7 @@ export function HomePage({
               <button
                 type="button"
                 onClick={() => onNavigate(page)}
-                className="bg-white/20 hover:bg-white/30 text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all"
+                className="bg-white/20 hover:bg-white/30 text-white font-semibold px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-200 hover:scale-105"
               >
                 View All <ChevronRight className="w-4 h-4" />
               </button>
@@ -205,7 +215,8 @@ export function HomePage({
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-10 text-[#6B5F52]">
-                No {label.toLowerCase()} listed yet.
+                No {label.toLowerCase()} listed yet. Add products from the Admin
+                panel.
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -225,6 +236,7 @@ export function HomePage({
                     onNavigate={(id) => onNavigate("product", id)}
                     compareIds={compareIds}
                     onToggleCompare={onToggleCompare}
+                    currency={currency}
                   />
                 ))}
               </div>
@@ -268,7 +280,7 @@ export function HomePage({
             ].map(({ icon: Icon, label, desc, color }) => (
               <div
                 key={label}
-                className="bg-white rounded-2xl p-6 text-center shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white rounded-2xl p-6 text-center shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
                 <Icon className={`w-10 h-10 mx-auto mb-3 ${color}`} />
                 <h3 className="font-semibold text-[#1E1B4B] mb-1">{label}</h3>

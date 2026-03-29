@@ -1,23 +1,21 @@
 import { Menu, ShoppingCart, X } from "lucide-react";
 import React, { useState } from "react";
+import type { Currency, Page } from "../App";
 import { useCart } from "../store/cart";
-
-type Page =
-  | "home"
-  | "mobiles"
-  | "tablets"
-  | "laptops"
-  | "cart"
-  | "compare"
-  | "admin"
-  | "product";
 
 interface HeaderProps {
   currentPage: Page;
   onNavigate: (page: Page, id?: string) => void;
+  currency: Currency;
+  onToggleCurrency: () => void;
 }
 
-export function Header({ currentPage, onNavigate }: HeaderProps) {
+export function Header({
+  currentPage,
+  onNavigate,
+  currency,
+  onToggleCurrency,
+}: HeaderProps) {
   const items = useCart((s) => s.items);
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,20 +25,18 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
     { label: "Mobiles", page: "mobiles" },
     { label: "Tablets", page: "tablets" },
     { label: "Laptops", page: "laptops" },
+    { label: "Watches", page: "smartwatches" },
     { label: "Compare", page: "compare" },
     { label: "Admin", page: "admin" },
   ];
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm shadow-md">
-      {/* Announcement bar */}
       <div className="bg-gradient-to-r from-[#4C1D95] to-[#7C3AED] text-white text-center text-xs py-1.5 font-medium">
         🚚 Free Delivery on Orders Above ₹999 &nbsp;|&nbsp; ✅ Certified
         Refurbished Electronics &nbsp;|&nbsp; 🔒 Secure Payments
       </div>
-      {/* Main header */}
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Logo */}
         <button
           type="button"
           onClick={() => onNavigate("home")}
@@ -53,14 +49,13 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           />
         </button>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-5">
           {navLinks.map(({ label, page }) => (
             <button
               type="button"
               key={page}
               onClick={() => onNavigate(page)}
-              className={`text-sm font-medium transition-colors ${
+              className={`text-sm font-medium transition-all duration-200 hover:scale-105 ${
                 currentPage === page
                   ? "text-[#7C3AED] font-semibold"
                   : "text-[#1E1B4B] hover:text-[#7C3AED]"
@@ -71,22 +66,26 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
           ))}
         </nav>
 
-        {/* Cart Icon */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleCurrency}
+            className="hidden md:flex items-center gap-1 text-xs font-bold border-2 border-[#7C3AED] text-[#7C3AED] rounded-full px-3 py-1 hover:bg-[#7C3AED] hover:text-white transition-all duration-200 hover:scale-105"
+          >
+            {currency === "INR" ? "₹ INR" : "$ USD"}
+          </button>
           <button
             type="button"
             onClick={() => onNavigate("cart")}
-            className="relative p-2 rounded-full hover:bg-[#EFE7D8] transition-colors"
+            className="relative p-2 rounded-full hover:bg-[#EFE7D8] transition-all duration-200 hover:scale-110"
           >
             <ShoppingCart className="w-6 h-6 text-[#1E1B4B]" />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#7C3AED] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+              <span className="absolute -top-1 -right-1 bg-[#7C3AED] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-bounce">
                 {cartCount}
               </span>
             )}
           </button>
-
-          {/* Mobile menu toggle */}
           <button
             type="button"
             className="md:hidden p-2 rounded-full hover:bg-[#EFE7D8]"
@@ -101,7 +100,6 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile Nav */}
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-[#D9D0C2] px-4 py-3 flex flex-col gap-3">
           {navLinks.map(({ label, page }) => (
@@ -121,6 +119,13 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={onToggleCurrency}
+            className="text-left py-2 px-3 rounded-lg text-sm font-bold text-[#7C3AED] border border-[#7C3AED]"
+          >
+            Switch to {currency === "INR" ? "$ USD" : "₹ INR"}
+          </button>
         </div>
       )}
     </header>
